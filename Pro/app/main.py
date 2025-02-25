@@ -16,10 +16,14 @@ from datetime import datetime
 
 app = FastAPI()
 
+cap = cv2.VideoCapture(0)
+
 # Parent Directory of dataset
 data_upload = "D:/SREC/Data"
 
 base_model = ResNet50(weights="imagenet", include_top=False, pooling="avg")
+
+file_path = "D:/SREC/Demo_4.xlsx"
 
 # To add a new user to parent directory
 @app.post("/add_new_user")
@@ -93,7 +97,7 @@ async def test_user(check: str, file: UploadFile = File(...)):
 
 @app.get("/in")
 async def entry_in():
-    file_path = "D:/SREC/Demo_3.xlsx"
+    
     # try:
     #     df = pd.read_excel(file_path)  # Load existing data
     # except FileNotFoundError:
@@ -103,7 +107,7 @@ async def entry_in():
     # To get the check-in time
     c_t = time.ctime()
     
-    new_entry = {"Name":person_in["name"], "In":c_t, "Out":"", "Work":""}
+    new_entry = {"Name": person_in["name"], "In": c_t, "Out": "", "Work": "", "Attendance": "", "OT": ""}
     new_df = pd.DataFrame([new_entry])  # Convert new data to DataFrame
     df = pd.concat([df, new_df], ignore_index=True)  # Append data
     
@@ -113,7 +117,7 @@ async def entry_in():
 
 @app.get("/out")
 async def out():
-    file_path = "D:/SREC/Demo_3.xlsx"
+    
     df = pd.read_excel(file_path)
     
     c_t = time.ctime()
@@ -142,7 +146,45 @@ async def out():
     
     df.loc[df[c2] == v2, u2] = n2
     df.loc[df[c2] == v2, u3] = w
+    
+    if float(w) >= 9:
+        df.loc[df[c2] == v2, "Attendance"] = "Present"
+    else:
+        df.loc[df[c2] == v2, "Attendance"] = "Absent"
+        
+    if float(w) >= 10 and dt1.time():
+        ot = w-9
+        df.loc[df[c2] == v2, "OT"] = ot
+    else:
+        df.loc[df[c2] == v2, "OT"] = 0
+
     df.to_excel(file_path, index=False)
+    
+    
     return {"Name": person_in["name"], "Status": "Checked Out!", "Time": out_time}
 
     
+    
+@app.post("/capture")
+def capture_image(new_user: str):
+    """Capture an image from the webcam and save it."""
+    ret, frame = cap.read()
+    if not ret:
+        return {"error": "Failed to capture image"}
+
+    new_user_folder = os.path.join(data_upload, new_user)
+    os.makedirs(new_user_folder, exist_ok=True)  # Create folder if it doesn't exist
+
+    # Generate a timestamped filename
+    filename = f"{new_user}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+    filepath = os.path.join(new_user_folder, filename)  # Full path
+
+    # Save the image inside the user's folder
+    cv2.imwrite(filepath, frame)
+    
+    return {"message": "Image captured successfully", "filename": filename}
+
+@app.on_event("shutdown")
+def shutdown():
+    """Release the camera when the server shuts down."""
+    cap.release()

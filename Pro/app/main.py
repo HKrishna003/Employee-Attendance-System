@@ -12,6 +12,7 @@ from tensorflow.keras.applications.resnet50 import preprocess_input
 import numpy as np
 import pandas as pd
 import time
+from datetime import datetime
 
 app = FastAPI()
 
@@ -44,7 +45,8 @@ if isdir:
 else:
     os.makedirs(upload)
 
-person_list = {"name":""}
+person_in = {"name":""}
+person_out = {"name":""}
 
 def extract_features(image_path):
     img = cv2.imread(image_path)
@@ -54,9 +56,9 @@ def extract_features(image_path):
     features = base_model.predict(img)
     return features.flatten() 
 
-## Test user
-@app.post("/entry")
-async def test_user(file: UploadFile = File(...)):
+## Entry and Exit
+@app.post("/in_out")
+async def test_user(check: str, file: UploadFile = File(...)):
     # if action in ["entry" or "exit"]:
         file_path = os.path.join(upload, file.filename)
         with open(file_path, "wb") as buffer:
@@ -83,12 +85,15 @@ async def test_user(file: UploadFile = File(...)):
         # Predict Class
         prediction = knn.predict(feature_vector)
         person_name = label_encoder.inverse_transform(prediction)[0]
-        person_list["name"] = person_name
+        if check == "in":
+            person_in["name"] = person_name
+        else:
+            person_out["name"] = person_name
         return person_name
 
-@app.get("/check_in")
+@app.get("/in")
 async def entry_in():
-    file_path = "D:/SREC/Demo_1.xlsx"
+    file_path = "D:/SREC/Demo_3.xlsx"
     # try:
     #     df = pd.read_excel(file_path)  # Load existing data
     # except FileNotFoundError:
@@ -98,10 +103,46 @@ async def entry_in():
     # To get the check-in time
     c_t = time.ctime()
     
-    new_entry = {"Name":person_list["name"],"In":c_t}
+    new_entry = {"Name":person_in["name"], "In":c_t, "Out":"", "Work":""}
     new_df = pd.DataFrame([new_entry])  # Convert new data to DataFrame
     df = pd.concat([df, new_df], ignore_index=True)  # Append data
     
     df.to_excel(file_path, index=False)
-    return {"Name": person_list["name"], "Status": "Checked In", "Time": c_t}
+    return {"Name": person_in["name"], "Status": "Checked In!", "Time": c_t}
 
+
+@app.get("/out")
+async def out():
+    file_path = "D:/SREC/Demo_3.xlsx"
+    df = pd.read_excel(file_path)
+    
+    c_t = time.ctime()
+    
+    v1 = person_out["name"]
+    c1 = "Name"
+    u1 = "In"  # Column to update
+    out_time = c_t
+   
+    v2 = person_out["name"]
+    c2 = "Name"
+    u2 = "Out"
+    u3 = "Work"
+    n2 = c_t
+    
+    in_time = df.loc[df[c1] == v1, u1].values[0]
+    
+    format_str = "%a %b %d %H:%M:%S %Y"  # Example: 'Mon Feb 26 14:30:15 2024'
+    dt1 = datetime.strptime(in_time, format_str)
+    dt2 = datetime.strptime(out_time, format_str)
+
+# Calculate the difference in hours
+    time_difference = dt2 - dt1
+    w = time_difference.total_seconds() / 3600
+    w = "{:.3f}".format(w)
+    
+    df.loc[df[c2] == v2, u2] = n2
+    df.loc[df[c2] == v2, u3] = w
+    df.to_excel(file_path, index=False)
+    return {"Name": person_in["name"], "Status": "Checked Out!", "Time": out_time}
+
+    

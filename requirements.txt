@@ -6,3 +6,11 @@ opencv-python
 tensorflow
 numpy
 pandas
+
+openpyxl
+
+dash
+
+streamlit
+
+starlette

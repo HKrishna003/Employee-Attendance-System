@@ -14,6 +14,10 @@ import pandas as pd
 import time
 from datetime import datetime
 
+from fastapi.responses import StreamingResponse, JSONResponse
+from starlette.staticfiles import StaticFiles
+
+
 app = FastAPI()
 
 cap = cv2.VideoCapture(0)
@@ -26,20 +30,20 @@ base_model = ResNet50(weights="imagenet", include_top=False, pooling="avg")
 file_path = "D:/SREC/Demo_4.xlsx"
 
 # To add a new user to parent directory
-@app.post("/add_new_user")
-async def add_user_name(name:str, file: UploadFile = File(...)):
-    new_user_folder = os.path.join(data_upload, name)
-    try:
-        os.makedirs(new_user_folder)
-        file_path = os.path.join(new_user_folder,file.filename)
-        try:
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error creating folder: {str(e)}")
-    return JSONResponse(content={"message": "New User Added successfully!"})
+# @app.post("/add_new_user")
+# async def add_user_name(name:str, file: UploadFile = File(...)):
+#     new_user_folder = os.path.join(data_upload, name)
+#     try:
+#         os.makedirs(new_user_folder)
+#         file_path = os.path.join(new_user_folder,file.filename)
+#         try:
+#             with open(file_path, "wb") as buffer:
+#                 shutil.copyfileobj(file.file, buffer)
+#         except Exception as e:
+#             raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Error creating folder: {str(e)}")
+#     return JSONResponse(content={"message": "New User Added successfully!"})
 
 
 upload = "uploads"
@@ -165,26 +169,52 @@ async def out():
 
     
     
-@app.post("/capture")
-def capture_image(new_user: str):
-    """Capture an image from the webcam and save it."""
-    ret, frame = cap.read()
-    if not ret:
-        return {"error": "Failed to capture image"}
+@app.post("/live")
+async def live_feed(new_user: str):
+    cap = cv2.VideoCapture(0)  # 0 for default webcam
 
-    new_user_folder = os.path.join(data_upload, new_user)
-    os.makedirs(new_user_folder, exist_ok=True)  # Create folder if it doesn't exist
+    if not cap.isOpened():
+        print("Error: Could not open webcam.")
+        exit()
+        
+    c = 0  
 
-    # Generate a timestamped filename
-    filename = f"{new_user}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-    filepath = os.path.join(new_user_folder, filename)  # Full path
+    print("Press 'c' to capture an image, 'q' to quit.")
 
-    # Save the image inside the user's folder
-    cv2.imwrite(filepath, frame)
-    
-    return {"message": "Image captured successfully", "filename": filename}
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("Failed to grab frame.")
+            break
 
-@app.on_event("shutdown")
-def shutdown():
-    """Release the camera when the server shuts down."""
+    # Display capture count on screen
+        cv2.putText(frame, f"Captures: {c}/5", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 
+                1, (0, 255, 0), 2, cv2.LINE_AA)
+
+    # Show the live video feed
+        cv2.imshow("Webcam - Press 'c' to capture, 'q' to quit", frame)
+
+    # Capture key press
+        key = cv2.waitKey(1) & 0xFF
+
+        if key == ord('c') and c < 5:  # If 'c' is pressed, capture image
+            c += 1
+            new_user_folder = os.path.join(data_upload, new_user)
+            os.makedirs(new_user_folder, exist_ok=True)  # Create user folder
+
+            # Generate filename
+            filename = f"{new_user}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+            filepath = os.path.join(new_user_folder, filename)
+
+            # Save the image
+            cv2.imwrite(filepath, frame)
+            print(f"Image saved: {filename}")
+
+        elif key == ord('q'):  # Quit program
+            print("Exiting...")
+            break
+
+# Release resources
     cap.release()
+    cv2.destroyAllWindows()
+    return {"Name": new_user, "message": "Face captured successfully"}

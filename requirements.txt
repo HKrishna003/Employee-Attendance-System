@@ -14,3 +14,7 @@ dash
 streamlit
 
 starlette
+
+streamlit
+altair
+plotly

@@ -45,7 +45,6 @@ file_path = "D:/SREC/Demo_4.xlsx"
 #         raise HTTPException(status_code=500, detail=f"Error creating folder: {str(e)}")
 #     return JSONResponse(content={"message": "New User Added successfully!"})
 
-
 upload = "uploads"
 isdir = os.path.isdir(upload)
 if isdir:
@@ -95,33 +94,34 @@ async def test_user(check: str, file: UploadFile = File(...)):
         person_name = label_encoder.inverse_transform(prediction)[0]
         if check == "in":
             person_in["name"] = person_name
-        else:
+        if check == "out":
             person_out["name"] = person_name
         return person_name
 
+
 @app.get("/in")
-async def entry_in():
-    
-    # try:
-    #     df = pd.read_excel(file_path)  # Load existing data
-    # except FileNotFoundError:
-    #     df = pd.DataFrame()  # Create new DataFrame if file doesn't exist
-       
-    df = pd.read_excel(file_path) 
-    # To get the check-in time
+async def entry_in_2():
+    df = pd.read_excel("D:/SREC/T3.xlsx")
     c_t = time.ctime()
     
-    new_entry = {"Name": person_in["name"], "In": c_t, "Out": "", "Work": "", "Attendance": "", "OT": ""}
-    new_df = pd.DataFrame([new_entry])  # Convert new data to DataFrame
-    df = pd.concat([df, new_df], ignore_index=True)  # Append data
+    name = "Name"
+    if name in df.columns:
+        old = person_in["name"] in df['Name'].values
+        if old:
+            df.loc[df["Name"]==person_in["name"],"In"] = df["In"].fillna('').astype(str) + ", " + c_t
+            print("Success")
+    else:
+        new_entry = {"Name": person_in["name"], "In": c_t, "Out": "", "Work": "", "Attendance": "", "OT": ""}
+        new_df = pd.DataFrame([new_entry]) 
+        df = pd.concat([df, new_df], ignore_index=True)
     
-    df.to_excel(file_path, index=False)
+    df.to_excel("D:/SREC/T3.xlsx", index=False)
     return {"Name": person_in["name"], "Status": "Checked In!", "Time": c_t}
 
 
 @app.get("/out")
 async def out():
-    
+    file_path = "D:/SREC/T3.xlsx"
     df = pd.read_excel(file_path)
     
     c_t = time.ctime()
@@ -136,37 +136,17 @@ async def out():
     u2 = "Out"
     u3 = "Work"
     n2 = c_t
+ 
     
-    in_time = df.loc[df[c1] == v1, u1].values[0]
-    
-    format_str = "%a %b %d %H:%M:%S %Y"  # Example: 'Mon Feb 26 14:30:15 2024'
-    dt1 = datetime.strptime(in_time, format_str)
-    dt2 = datetime.strptime(out_time, format_str)
-
-# Calculate the difference in hours
-    time_difference = dt2 - dt1
-    w = time_difference.total_seconds() / 3600
-    w = "{:.3f}".format(w)
-    
-    df.loc[df[c2] == v2, u2] = n2
-    df.loc[df[c2] == v2, u3] = w
-    
-    if float(w) >= 9:
-        df.loc[df[c2] == v2, "Attendance"] = "Present"
-    else:
-        df.loc[df[c2] == v2, "Attendance"] = "Absent"
-        
-    if float(w) >= 10 and dt1.time():
-        ot = w-9
-        df.loc[df[c2] == v2, "OT"] = ot
-    else:
-        df.loc[df[c2] == v2, "OT"] = 0
+    df.loc[df[c2] == v2, u2] = df.loc[df[c2] == v2, u2].fillna('').apply(lambda x: n2 if x == '' else x + ", " + n2)
+    # work(person_out["name"])
+    # attendance()
+    # ot()
 
     df.to_excel(file_path, index=False)
     
     
-    return {"Name": person_in["name"], "Status": "Checked Out!", "Time": out_time}
-
+    return {"Name": person_out["name"], "Status": "Checked Out!", "Time": out_time}
     
     
 @app.post("/live")
@@ -218,3 +198,23 @@ async def live_feed(new_user: str):
     cap.release()
     cv2.destroyAllWindows()
     return {"Name": new_user, "message": "Face captured successfully"}
+
+
+
+
+## To calculate Work
+def work(name):
+    print("Calculate work")
+    df = pd.read_excel("D:/SREC/T3.xlsx")
+    in_time = df.loc[df["Name"] == name, "In"].values
+    out_time = df.loc[df["Name"] == name, "Out"].values
+    
+    in_list = [x.strip() for x in str(in_time[0]).split(",") if x.strip()]
+    out_list = [x.strip() for x in str(out_time[0]).split(",") if x.strip()]
+
+    # Pair timestamps index-wise
+    matched_pairs = list(zip(in_list, out_list))
+    
+    print(matched_pairs[0])
+
+work("Natalie Portman")

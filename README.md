@@ -3,6 +3,10 @@ To Run
 uvicorn app.main:app --reload
 
 
-Sample Dashboard
+Sample Dashboard - 1
 
-![image](https://github.com/user-attachments/assets/379d2f47-bc45-471f-831e-853d4b0f43fb)
+
+
+
+https://github.com/user-attachments/assets/7ff6f576-3193-41fe-a6af-727fca969cab
+

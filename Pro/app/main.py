@@ -110,10 +110,10 @@ async def entry_in_2():
         if old:
             df.loc[df["Name"]==person_in["name"],"In"] = df["In"].fillna('').astype(str) + ", " + c_t
             print("Success")
-    else:
-        new_entry = {"Name": person_in["name"], "In": c_t, "Out": "", "Work": "", "Attendance": "", "OT": ""}
-        new_df = pd.DataFrame([new_entry]) 
-        df = pd.concat([df, new_df], ignore_index=True)
+        else:
+            new_entry = {"Name": person_in["name"], "In": c_t, "Out": "", "Work": "", "Attendance": "", "OT": ""}
+            new_df = pd.DataFrame([new_entry]) 
+            df = pd.concat([df, new_df], ignore_index=True)
     
     df.to_excel("D:/SREC/T3.xlsx", index=False)
     return {"Name": person_in["name"], "Status": "Checked In!", "Time": c_t}
@@ -137,39 +137,39 @@ async def out():
     u3 = "Work"
     n2 = c_t
  
-    # old = person_out["name"] in df['Out'].values
-    # if old:
-    df.loc[df[c2] == v2, u2] = df.loc[df[c2] == v2, u2].fillna('').apply(lambda x: n2 if x == '' else x + ", " + n2)
-    work_hours, c_w, attendance, ot = work(person_out["name"])
-    # To write in excel
-    df.loc[df["Name"] == person_out["name"], "Work"] = work_hours
-    df.loc[df[c2] == v2, "Attendance"] = attendance
-    df.loc[df[c2] == v2, "OT"] = ot
-    # else:
-    #     df.loc[df["Name"] == person_out["name"], "Work"] = c_t
-    #     in_time = df.loc[df[c1] == v1, u1].values[0]
+    old = df.loc[df["Name"] == "Virat", "Out"].notna().any()
+    if old:
+        df.loc[df[c2] == v2, u2] = df.loc[df[c2] == v2, u2].fillna('').apply(lambda x: n2 if x == '' else x + ", " + n2)
+        work_hours, c_w, attendance, ot = work(person_out["name"])
+        # To write in excel
+        df.loc[df["Name"] == person_out["name"], "Work"] = work_hours
+        df.loc[df[c2] == v2, "Attendance"] = attendance
+        df.loc[df[c2] == v2, "OT"] = ot
+    else:
+        df.loc[df["Name"] == person_out["name"], "Out"] = c_t
+        in_time = df.loc[df[c1] == v1, u1].values[0]
     
-    #     format_str = "%a %b %d %H:%M:%S %Y"  # Example: 'Mon Feb 26 14:30:15 2024'
-    #     dt1 = datetime.strptime(in_time, format_str)
-    #     dt2 = datetime.strptime(out_time, format_str)
+        format_str = "%a %b %d %H:%M:%S %Y"  # Example: 'Mon Feb 26 14:30:15 2024'
+        dt1 = datetime.strptime(in_time, format_str)
+        dt2 = datetime.strptime(out_time, format_str)
 
-    # # Calculate the difference in hours
-    #     time_difference = dt2 - dt1
-    #     w = time_difference.total_seconds() / 3600
-    #     w = "{:.3f}".format(w)
+    # Calculate the difference in hours
+        time_difference = dt2 - dt1
+        w = time_difference.total_seconds() / 3600
+        c_w = "{:.3f}".format(w)
         
-    #     df.loc[df[c2] == v2, u3] = w
+        df.loc[df[c2] == v2, u3] = c_w
         
-    #     if float(w) >= 9:
-    #         df.loc[df[c2] == v2, "Attendance"] = "Present"
-    #     else:
-    #         df.loc[df[c2] == v2, "Attendance"] = "Absent"
+        if float(c_w) >= 9:
+            df.loc[df[c2] == v2, "Attendance"] = "Present"
+        else:
+            df.loc[df[c2] == v2, "Attendance"] = "Absent"
             
-    #     if float(w) >= 10 and dt1.time():
-    #         ot = float(w)-9
-    #         df.loc[df[c2] == v2, "OT"] = ot
-    #     else:
-    #         df.loc[df[c2] == v2, "OT"] = 0
+        if float(c_w) >= 10 and dt1.time():
+            ot = float(w)-9
+            df.loc[df[c2] == v2, "OT"] = ot
+        else:
+            df.loc[df[c2] == v2, "OT"] = 0
 
     df.to_excel(file_path, index=False)
     

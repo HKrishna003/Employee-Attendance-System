@@ -45,6 +45,10 @@ file_path = "D:/SREC/Demo_4.xlsx"
 #         raise HTTPException(status_code=500, detail=f"Error creating folder: {str(e)}")
 #     return JSONResponse(content={"message": "New User Added successfully!"})
 
+
+
+def work():
+    print("Calculate work")
 upload = "uploads"
 isdir = os.path.isdir(upload)
 if isdir:
@@ -98,8 +102,27 @@ async def test_user(check: str, file: UploadFile = File(...)):
             person_out["name"] = person_name
         return person_name
 
-
 @app.get("/in")
+async def entry_in():
+    
+    # try:
+    #     df = pd.read_excel(file_path)  # Load existing data
+    # except FileNotFoundError:
+    #     df = pd.DataFrame()  # Create new DataFrame if file doesn't exist
+       
+    df = pd.read_excel(file_path) 
+    # To get the check-in time
+    c_t = time.ctime()
+    
+    new_entry = {"Name": person_in["name"], "In": c_t, "Out": "", "Work": "", "Attendance": "", "OT": ""}
+    new_df = pd.DataFrame([new_entry])  # Convert new data to DataFrame
+    df = pd.concat([df, new_df], ignore_index=True)  # Append data
+    
+    df.to_excel(file_path, index=False)
+    return {"Name": person_in["name"], "Status": "Checked In!", "Time": c_t}
+
+
+@app.get("/in_2")
 async def entry_in_2():
     df = pd.read_excel("D:/SREC/T3.xlsx")
     c_t = time.ctime()
@@ -119,7 +142,55 @@ async def entry_in_2():
     return {"Name": person_in["name"], "Status": "Checked In!", "Time": c_t}
 
 
+
 @app.get("/out")
+async def out():
+    
+    df = pd.read_excel(file_path)
+    
+    c_t = time.ctime()
+    
+    v1 = person_out["name"]
+    c1 = "Name"
+    u1 = "In"  # Column to update
+    out_time = c_t
+   
+    v2 = person_out["name"]
+    c2 = "Name"
+    u2 = "Out"
+    u3 = "Work"
+    n2 = c_t
+    
+    in_time = df.loc[df[c1] == v1, u1].values[0]
+    
+    format_str = "%a %b %d %H:%M:%S %Y"  # Example: 'Mon Feb 26 14:30:15 2024'
+    dt1 = datetime.strptime(in_time, format_str)
+    dt2 = datetime.strptime(out_time, format_str)
+
+# Calculate the difference in hours
+    time_difference = dt2 - dt1
+    w = time_difference.total_seconds() / 3600
+    w = "{:.3f}".format(w)
+    
+    df.loc[df[c2] == v2, u3] = w
+    
+    if float(w) >= 9:
+        df.loc[df[c2] == v2, "Attendance"] = "Present"
+    else:
+        df.loc[df[c2] == v2, "Attendance"] = "Absent"
+        
+    if float(w) >= 10 and dt1.time():
+        ot = float(w)-9
+        df.loc[df[c2] == v2, "OT"] = ot
+    else:
+        df.loc[df[c2] == v2, "OT"] = 0
+
+    df.to_excel(file_path, index=False)
+    
+    
+    return {"Name": person_in["name"], "Status": "Checked Out!", "Time": out_time}
+
+@app.get("/out_2")
 async def out():
     file_path = "D:/SREC/T3.xlsx"
     df = pd.read_excel(file_path)
@@ -137,44 +208,16 @@ async def out():
     u3 = "Work"
     n2 = c_t
  
-    # old = person_out["name"] in df['Out'].values
-    # if old:
-    df.loc[df[c2] == v2, u2] = df.loc[df[c2] == v2, u2].fillna('').apply(lambda x: n2 if x == '' else x + ", " + n2)
-    work_hours, c_w, attendance, ot = work(person_out["name"])
-    # To write in excel
-    df.loc[df["Name"] == person_out["name"], "Work"] = work_hours
-    df.loc[df[c2] == v2, "Attendance"] = attendance
-    df.loc[df[c2] == v2, "OT"] = ot
-    # else:
-    #     df.loc[df["Name"] == person_out["name"], "Work"] = c_t
-    #     in_time = df.loc[df[c1] == v1, u1].values[0]
     
-    #     format_str = "%a %b %d %H:%M:%S %Y"  # Example: 'Mon Feb 26 14:30:15 2024'
-    #     dt1 = datetime.strptime(in_time, format_str)
-    #     dt2 = datetime.strptime(out_time, format_str)
-
-    # # Calculate the difference in hours
-    #     time_difference = dt2 - dt1
-    #     w = time_difference.total_seconds() / 3600
-    #     w = "{:.3f}".format(w)
-        
-    #     df.loc[df[c2] == v2, u3] = w
-        
-    #     if float(w) >= 9:
-    #         df.loc[df[c2] == v2, "Attendance"] = "Present"
-    #     else:
-    #         df.loc[df[c2] == v2, "Attendance"] = "Absent"
-            
-    #     if float(w) >= 10 and dt1.time():
-    #         ot = float(w)-9
-    #         df.loc[df[c2] == v2, "OT"] = ot
-    #     else:
-    #         df.loc[df[c2] == v2, "OT"] = 0
+    df.loc[df[c2] == v2, u2] = df.loc[df[c2] == v2, u2].fillna('').apply(lambda x: n2 if x == '' else x + ", " + n2)
+    work()
+    # attendance()
+    # ot()
 
     df.to_excel(file_path, index=False)
     
     
-    return {"Name": person_out["name"], "Status": "Checked Out!", "Time": out_time, "Work Hours Added":  c_w}
+    return {"Name": person_out["name"], "Status": "Checked Out!", "Time": out_time}
     
     
 @app.post("/live")
@@ -211,7 +254,7 @@ async def live_feed(new_user: str):
             os.makedirs(new_user_folder, exist_ok=True)  # Create user folder
 
             # Generate filename
-            filename = f"{new_user}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+            filename = f"{new_user}{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
             filepath = os.path.join(new_user_folder, filename)
 
             # Save the image
@@ -225,70 +268,4 @@ async def live_feed(new_user: str):
 # Release resources
     cap.release()
     cv2.destroyAllWindows()
-    return {"Name": new_user, "message": "Face captured successfully"}
-
-
-
-
-## To calculate Work
-def work(name):
-    
-    print("Calculate work")
-    df = pd.read_excel("D:/SREC/T3.xlsx")
-    in_time = df.loc[df["Name"] == name, "In"].values
-    out_time = df.loc[df["Name"] == name, "Out"].values
-    
-    in_list = [x.strip() for x in str(in_time[0]).split(",") if x.strip()]
-    out_list = [x.strip() for x in str(out_time[0]).split(",") if x.strip()]
-
-    # Pair timestamps index-wise
-    matched_pairs = list(zip(in_list, out_list))
-#     w = 0
-    
-#     # print(matched_pairs[0][0])
-#     for i in range(len(matched_pairs)):
-#         in_time = matched_pairs[i][0]
-#         out_time = matched_pairs[i][1]
-#         format_str = "%a %b %d %H:%M:%S %Y"  
-#         dt1 = datetime.strptime(in_time, format_str)
-#         dt2 = datetime.strptime(out_time, format_str)
-
-# # Calculate the difference in hours
-#         time_difference = dt2 - dt1
-#         c_w = time_difference.total_seconds() / 3600
-#         c_w = "{:.3f}".format(w)
-#         c_w = float(c_w)
-#         w += c_w
-        
-     # Ensure both lists have the same length
-    min_length = min(len(in_list), len(out_list))
-    matched_pairs = list(zip(in_list[:min_length], out_list[:min_length]))
-
-    format_str = "%a %b %d %H:%M:%S %Y"  # Date format
-    w = 0 # Total work time in hours
-    ot = 0 # Total OT in hours
-    c_w = 0
-    o_t = 0
-    o_t = df.loc[df["Name"]==person_out["name"], "OT"].values
-    dt1 = dt2 =None
-    for in_time, out_time in matched_pairs:
-        dt1 = datetime.strptime(in_time, format_str)
-        dt2 = datetime.strptime(out_time, format_str)
-
-        # Calculate the difference in hours
-        time_difference = dt2 - dt1
-        c_w = time_difference.total_seconds() / 3600  
-
-        # Format to 3 decimal places
-        c_w = float("{:.3f}".format(c_w))
-        w += c_w  # Accumulate work time
-        
-    if float(w) >= 10 and dt1.time()<=10:
-            ot = float(w)-9
-            ot += o_t
-    if c_w >= 9:
-        attendance = "Present"
-    else:
-        attendance = "Absent"
-    return w, c_w, attendance, ot
-    
+    return {"Name": new_user, "message": "Face captured successfully"}

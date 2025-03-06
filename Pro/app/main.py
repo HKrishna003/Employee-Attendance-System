@@ -300,8 +300,8 @@ async def live_feed(new_user: str):
             new_user_folder = os.path.join(data_upload, new_user)
             os.makedirs(new_user_folder, exist_ok=True)  # Create user folder
 
-            # Generate filename for original image
-            base_filename = f"{new_user}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            # Generate filename for original image (replace spaces with underscores)
+            base_filename = f"{new_user.replace(' ', '_')}_{c}"
             filepath = os.path.join(new_user_folder, base_filename + ".jpg")
 
             # Save the original image
@@ -311,7 +311,7 @@ async def live_feed(new_user: str):
             # Apply data augmentation
             augmented_images = augment_image(frame)
 
-            # Save augmented images
+            # Save augmented images with _aug_{i} suffix
             for i, aug_img in enumerate(augmented_images[1:], start=1):  # Skip original
                 aug_filepath = os.path.join(new_user_folder, f"{base_filename}_aug_{i}.jpg")
                 cv2.imwrite(aug_filepath, aug_img)

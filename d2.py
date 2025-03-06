@@ -7,7 +7,7 @@ import plotly.express as px
 
 excel_file = pd.ExcelFile("T3.xlsx")
 
-images = r"D:\SREC\Dataset"
+images = r"D:\SREC\Dataset_2"
 
 # Get all sheet names
 sheet_names = excel_file.sheet_names
@@ -38,7 +38,8 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.title(selected_employee)
-    person_image_1 = images + "\\" + selected_employee + "\\" + selected_employee+"_0"+".jpg"
+    person_image_1 = images + "\\" + selected_employee + "\\" + selected_employee+"_1"+".jpg"
+    print(person_image_1)
     st.image(person_image_1, caption=f"Employee ID : {id}", use_container_width=True)
     
     in_time = month.loc[month["Name"] == selected_employee, "In"].values
@@ -52,8 +53,8 @@ with col1:
     # "In_Hour": in_hours,
     # "Out_Hour": out_hours
     # })
-    # print(in_hours)
-    # print(out_hours)
+    print(in_hours)
+    print(out_hours)
     # st.line_chart(chart_data)
     in_hours = list(map(int, in_hours))
     out_hours = list(map(int, out_hours))

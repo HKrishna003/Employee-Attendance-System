@@ -13,17 +13,17 @@ import numpy as np
 import pandas as pd
 import time
 from datetime import datetime
-
+import random
 from fastapi.responses import StreamingResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
-
+import subprocess
 
 app = FastAPI()
 
 cap = cv2.VideoCapture(0)
 
 # Parent Directory of dataset
-data_upload = "D:/SREC/Data"
+data_upload = "D:/SREC/Dataset_2"
 
 base_model = ResNet50(weights="imagenet", include_top=False, pooling="avg")
 
@@ -75,7 +75,7 @@ async def test_user(check: str, file: UploadFile = File(...)):
         # with open(file_path, "wb") as buffer:
         #     buffer.write(file.file.read())
 
-        with open("D:/SREC/face_features_2.pkl", "rb") as f:
+        with open("D:/SREC/Model/dataset_2.pkl", "rb") as f:
             data = pickle.load(f)
 
         features = data["features"]
@@ -177,9 +177,99 @@ async def out():
     return {"Name": person_out["name"], "Status": "Checked Out!", "Time": out_time, "Work Hours Added":  c_w}
     
     
+# @app.post("/live")
+# async def live_feed(new_user: str):
+#     cap = cv2.VideoCapture(0)  # 0 for default webcam
+
+#     if not cap.isOpened():
+#         print("Error: Could not open webcam.")
+#         exit()
+        
+#     c = 0  
+
+#     print("Press 'c' to capture an image, 'q' to quit.")
+
+#     while True:
+#         ret, frame = cap.read()
+#         if not ret:
+#             print("Failed to grab frame.")
+#             break
+
+#     # Display capture count on screen
+#         cv2.putText(frame, f"Captures: {c}/5", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 
+#                 1, (0, 255, 0), 2, cv2.LINE_AA)
+
+#     # Show the live video feed
+#         cv2.imshow("Webcam - Press 'c' to capture, 'q' to quit", frame)
+
+#     # Capture key press
+#         key = cv2.waitKey(1) & 0xFF
+
+#         if key == ord('c') and c < 5:  # If 'c' is pressed, capture image
+#             c += 1
+#             new_user_folder = os.path.join(data_upload, new_user)
+#             os.makedirs(new_user_folder, exist_ok=True)  # Create user folder
+
+#             # Generate filename
+#             filename = f"{new_user}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+#             filepath = os.path.join(new_user_folder, filename)
+
+#             # Save the image
+#             cv2.imwrite(filepath, frame)
+#             print(f"Image saved: {filename}")
+
+#         elif key == ord('q'):  # Quit program
+#             print("Exiting...")
+#             break
+
+# # Release resources
+#     cap.release()
+#     cv2.destroyAllWindows()
+#     return {"Name": new_user, "message": "Face captured successfully"}
+
+
+  # Folder where images will be saved
+
+def augment_image(image):
+    """Applies different augmentation techniques and returns a list of transformed images."""
+    augmented_images = []
+
+    # 1. Original image
+    augmented_images.append(image)
+
+    # 2. Horizontally flipped
+    flipped = cv2.flip(image, 1)
+    augmented_images.append(flipped)
+
+    # 3. Rotated by a random angle (-20 to 20 degrees)
+    angle = random.randint(-20, 20)
+    (h, w) = image.shape[:2]
+    M = cv2.getRotationMatrix2D((w//2, h//2), angle, 1.0)
+    rotated = cv2.warpAffine(image, M, (w, h))
+    augmented_images.append(rotated)
+
+    # 4. Brightness adjustment (increase or decrease)
+    brightness_factor = random.uniform(0.7, 1.3)  # Random brightness scale
+    brightened = np.clip(image * brightness_factor, 0, 255).astype(np.uint8)
+    augmented_images.append(brightened)
+
+    # 5. Gaussian Blur
+    blurred = cv2.GaussianBlur(image, (5, 5), 0)
+    augmented_images.append(blurred)
+
+    # 6. Scaling (Zoom in by cropping and resizing)
+    crop_ratio = 0.9  # Zoom in by keeping 90% of the original size
+    crop_h, crop_w = int(h * crop_ratio), int(w * crop_ratio)
+    cropped = image[(h - crop_h) // 2: (h + crop_h) // 2, (w - crop_w) // 2: (w + crop_w) // 2]
+    zoomed = cv2.resize(cropped, (w, h))  # Resize back to original size
+    augmented_images.append(zoomed)
+
+    return augmented_images
+
+
 @app.post("/live")
 async def live_feed(new_user: str):
-    cap = cv2.VideoCapture(0)  # 0 for default webcam
+    cap = cv2.VideoCapture(0)  # Open webcam
 
     if not cap.isOpened():
         print("Error: Could not open webcam.")
@@ -195,14 +285,14 @@ async def live_feed(new_user: str):
             print("Failed to grab frame.")
             break
 
-    # Display capture count on screen
+        # Display capture count on screen
         cv2.putText(frame, f"Captures: {c}/5", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 
-                1, (0, 255, 0), 2, cv2.LINE_AA)
+                    1, (0, 255, 0), 2, cv2.LINE_AA)
 
-    # Show the live video feed
+        # Show the live video feed
         cv2.imshow("Webcam - Press 'c' to capture, 'q' to quit", frame)
 
-    # Capture key press
+        # Capture key press
         key = cv2.waitKey(1) & 0xFF
 
         if key == ord('c') and c < 5:  # If 'c' is pressed, capture image
@@ -210,24 +300,48 @@ async def live_feed(new_user: str):
             new_user_folder = os.path.join(data_upload, new_user)
             os.makedirs(new_user_folder, exist_ok=True)  # Create user folder
 
-            # Generate filename
-            filename = f"{new_user}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-            filepath = os.path.join(new_user_folder, filename)
+            # Generate filename for original image
+            base_filename = f"{new_user}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            filepath = os.path.join(new_user_folder, base_filename + ".jpg")
 
-            # Save the image
+            # Save the original image
             cv2.imwrite(filepath, frame)
-            print(f"Image saved: {filename}")
+            print(f"Image saved: {base_filename}.jpg")
+
+            # Apply data augmentation
+            augmented_images = augment_image(frame)
+
+            # Save augmented images
+            for i, aug_img in enumerate(augmented_images[1:], start=1):  # Skip original
+                aug_filepath = os.path.join(new_user_folder, f"{base_filename}_aug_{i}.jpg")
+                cv2.imwrite(aug_filepath, aug_img)
+                print(f"Augmented Image saved: {base_filename}_aug_{i}.jpg")
 
         elif key == ord('q'):  # Quit program
             print("Exiting...")
             break
 
-# Release resources
+    # Release resources
     cap.release()
     cv2.destroyAllWindows()
-    return {"Name": new_user, "message": "Face captured successfully"}
 
+    retrain_model()
+    df = pd.read_excel("D:/SREC/T3.xlsx")
+    c_t = time.ctime()
+    new_entry = {"Name": new_user, "In": c_t, "Out": "", "Work": "", "Attendance": "", "OT": ""}
+    new_df = pd.DataFrame([new_entry]) 
+    df = pd.concat([df, new_df], ignore_index=True)
+    
+    df.to_excel("D:/SREC/T3.xlsx", index=False)
 
+    return {"Name": new_user, "Checked-In": c_t, "message": "Face captured successfully"}
+
+def retrain_model():
+    print("Model is retraiing")
+    script_path = r"D:\SREC\Model_retrain.py"  # Update with actual script path
+    python_path = r"D:\SREC\myenv\Scripts\python.exe"  # Update with actual path
+
+    subprocess.run([python_path, script_path], check=True)
 
 
 ## To calculate Work

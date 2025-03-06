@@ -18,3 +18,11 @@ starlette
 streamlit
 altair
 plotly
+
+tensorflow
+pandas
+numpy
+scikit-learn
+pillow
+matplotlib
+opencv-python

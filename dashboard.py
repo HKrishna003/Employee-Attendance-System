@@ -11,9 +11,10 @@ images = r"D:\srec_project\project\backend_1\Dataset_5"
 
 # Get all sheet names
 sheet_names = excel_file.sheet_names
-# print(sheet_names)
-# df = pd.read_excel("T1.xlsx", sheet_name="Sheet2")
-# print(df)
+sheet_to_remove = "Sheet1"  # Specify the sheet name to remove
+
+if sheet_to_remove in sheet_names:
+    sheet_names.remove(sheet_to_remove)
 
 
 # Function to convert time to 12-hour format (only extracting hours)
@@ -30,9 +31,10 @@ st.set_page_config(
 with st.sidebar:
     st.title('🧑‍🏭 Employee Attendance Dashboard 🧑‍🏭')
     selected_dept = st.selectbox('Select Department', sheet_names)
-    month = pd.read_excel("T1.xlsx",sheet_name=selected_dept)
-    employee_names = month['Name'].tolist()
-    selected_employee = st.selectbox('Select an employee', employee_names)
+    if selected_dept != "Sheet1":
+        month = pd.read_excel("T1.xlsx",sheet_name=selected_dept)
+        employee_names = month['Name'].tolist()
+        selected_employee = st.selectbox('Select an employee', employee_names)
     
 col1, col2 = st.columns(2)
 
@@ -76,7 +78,7 @@ with col1:
     st.plotly_chart(fig)
     
 with col2:
-    st.write(f'## Attendance Summary {selected_dept}')
+    st.write(f'## Attendance Summary')
     work = month.loc[month["Name"] == selected_employee, "Work"].values[0]
     ot = month.loc[month["Name"] == selected_employee, "OT"].values[0]
     st.metric(label="Work", value=work, delta="Hrs", delta_color="normal")
